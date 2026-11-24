@@ -1,3 +1,7 @@
+# OpenMarks 0.2.11 verification
+
+The production build, compiled lifecycle fixture, manual refresh fixture and all 84 automated tests passed. The suite ran on Node 20, 22 and 24. A new regression verifies that metadata parsing extracts entities and same-origin icon candidates without requiring a DOM or fetching embedded images. The macOS installer and four ZIP checks passed. Native application tests below refer to the previous release.
+
 # OpenMarks 0.2.10 verification
 
 November 24, 2026

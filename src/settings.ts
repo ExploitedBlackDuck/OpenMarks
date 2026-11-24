@@ -24,7 +24,6 @@ export class OpenMarksSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl('h2', { text: 'OpenMarks' });
     new Setting(containerEl).setName('Bookmarks').setHeading();
     new Setting(containerEl)
       .setName('Bookmark folder')

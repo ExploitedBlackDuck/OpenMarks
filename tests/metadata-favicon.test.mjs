@@ -4,7 +4,6 @@ import { setRequestUrlHandler } from './obsidian-mock.mjs';
 import { downloadFavicon, fetchPageMetadata, requestAfterPacing } from '../.test-build/metadata.mjs';
 
 globalThis.window ??= globalThis;
-globalThis.document ??= { createElement() { return { content: { querySelector: () => null, querySelectorAll: () => [] } }; } };
 const iconBytes = new TextEncoder().encode('12345678icon').buffer;
 
 test('favicon requests send conditional validators and preserve cache on HTTP 304', async () => {
@@ -73,4 +72,21 @@ test('unsafe legacy bookmark IDs cannot allocate favicon files', async () => {
   setRequestUrlHandler(() => assert.fail('invalid cache names must fail before requesting'));
   const result = await downloadFavicon('https://example.org/favicon.ico','https://example.org','site-x/../other',() => assert.fail('no write'));
   assert.equal(result.path,'');
+});
+
+test('metadata parses as data without a DOM or subresource requests', async () => {
+  const requests = [];
+  setRequestUrlHandler(async ({url}) => {
+    requests.push(url);
+    return { status: 200, headers: {'Content-Type': 'text/html'}, text:
+      '<title>A &amp; B</title><template><meta name="description" content="ignored"></template>' +
+      '<meta name="Description" content="Publisher&#39;s guide"><link rel="icon" href="/icon.png">' +
+      '<img src="https://assets.example/photo.png">' };
+  });
+  const url = 'https://metadata.example/guide';
+  const result = await fetchPageMetadata(url);
+  assert.equal(result.title, 'A & B');
+  assert.equal(result.description, "Publisher's guide");
+  assert.equal(result.favicon, 'https://metadata.example/icon.png');
+  assert.deepEqual(requests, [url]);
 });

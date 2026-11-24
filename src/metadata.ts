@@ -1,3 +1,4 @@
+import { parse, type DefaultTreeAdapterMap } from 'parse5';
 import { requestUrl } from 'obsidian';
 import type { BookmarkDraft } from './model.ts';
 import { isPublicWebUrl, safeFaviconBytes, sameOrigin } from './security.ts';
@@ -44,17 +45,30 @@ export async function fetchPageMetadata(rawUrl: string, signal?: AbortSignal): P
   if (response.status < 200 || response.status >= 300) throw new Error(`Page returned HTTP ${response.status}.`);
   if (!type.toLowerCase().includes('text/html') && !type.toLowerCase().includes('application/xhtml')) throw new Error('The address did not return an HTML page.');
   const html = (await response.text).slice(0, PAGE_LIMIT);
-  // Template contents are inert. Metadata parsing must never load page subresources.
-  const template = document.createElement('template');
-  template.innerHTML = html;
-  const fragment = template.content;
-  const title = fragment.querySelector('title')?.textContent?.trim() ?? '';
-  const description = ['description', 'og:description'].map(key =>
-    fragment.querySelector(`meta[name="${key}" i],meta[property="${key}" i]`)?.getAttribute('content')?.trim()
-  ).find(Boolean) ?? '';
-  const links = [...fragment.querySelectorAll('link[rel][href]')].map(link => ({
-    rel: link.getAttribute('rel') ?? '', href: link.getAttribute('href') ?? '',
-  }));
+  // Parse into plain data so remote markup cannot create elements or fetch resources.
+  const nodes: DefaultTreeAdapterMap['childNode'][] = [...parse(html).childNodes].reverse();
+  let title = '';
+  const descriptions = new Map<string, string>();
+  const links: { rel: string; href: string }[] = [];
+  while (nodes.length) {
+    const node = nodes.pop();
+    if (!node || !('tagName' in node)) continue;
+    if (node.tagName === 'title' && !title) {
+      title = node.childNodes.map(child => 'value' in child ? child.value : '').join('').trim();
+    } else if (node.tagName === 'meta' || node.tagName === 'link') {
+      const attrs = new Map(node.attrs.map(attr => [attr.name, attr.value]));
+      if (node.tagName === 'link') links.push({ rel: attrs.get('rel') ?? '', href: attrs.get('href') ?? '' });
+      else {
+        for (const attr of ['name', 'property']) {
+          const key = attrs.get(attr)?.toLowerCase();
+          if ((key === 'description' || key === 'og:description') && !descriptions.has(key))
+            descriptions.set(key, attrs.get('content')?.trim() ?? '');
+        }
+      }
+    }
+    for (let index = node.childNodes.length - 1; index >= 0; index--) nodes.push(node.childNodes[index]);
+  }
+  const description = descriptions.get('description') || descriptions.get('og:description') || '';
   const iconHrefs = links.filter(({ rel, href }) => href && /(?:^|\s)(?:icon|shortcut|apple-touch-icon|mask-icon)(?:\s|$)/i.test(rel)).map(({ href }) => href);
   const faviconCandidates: string[] = [];
   for (const href of [...iconHrefs, '/favicon.ico']) {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.11
+
+- Parse page metadata without inserting remote HTML into a DOM. Use native Obsidian settings headings.
+
 ## 0.2.10
 
 - After upgrading, bookmarks with previously cached SVG icons show initials until a raster icon is available. Clear favicon cache removes the old managed SVG files.

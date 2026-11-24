@@ -1,6 +1,6 @@
 {
   "name": "openmarks",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "private": true,
   "description": "A local-first bookmark manager for Obsidian",
   "license": "MIT",
@@ -19,8 +19,11 @@
   },
   "devDependencies": {
     "esbuild": "0.25.10",
+    "linkedom": "0.18.12",
     "obsidian": "latest",
-    "typescript": "5.9.3",
-    "linkedom": "0.18.12"
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "parse5": "7.3.0"
   }
 }
