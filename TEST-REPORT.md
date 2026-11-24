@@ -1,3 +1,9 @@
+# OpenMarks 0.2.12 verification
+
+By LanternSquid.
+
+All 84 automated tests passed on Node 20, 22 and 24. Type checking, the production build, installer, and disk-backed plugin lifecycle checks passed. The patch updates attribution and packaging. Native application results below apply to earlier builds.
+
 # OpenMarks 0.2.11 verification
 
 The production build, compiled lifecycle fixture, manual refresh fixture and all 84 automated tests passed. The suite ran on Node 20, 22 and 24. A new regression verifies that metadata parsing extracts entities and same-origin icon candidates without requiring a DOM or fetching embedded images. The macOS installer and four ZIP checks passed. Native application tests below refer to the previous release.

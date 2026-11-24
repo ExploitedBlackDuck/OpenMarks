@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.12
+
+- Credit LanternSquid as the author of OpenMarks in the plugin, documentation, license, and release packages.
+
 ## 0.2.11
 
 - Parse page metadata without inserting remote HTML into a DOM. Use native Obsidian settings headings.

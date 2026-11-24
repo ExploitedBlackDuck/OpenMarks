@@ -1,9 +1,9 @@
 {
   "id": "openmarks",
   "name": "OpenMarks",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "minAppVersion": "1.1.0",
   "description": "A local-first bookmark manager with portable Markdown storage.",
-  "author": "OpenMarks contributors",
+  "author": "LanternSquid",
   "isDesktopOnly": false
 }

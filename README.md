@@ -1,4 +1,6 @@
-# OpenMarks 0.2.11
+# OpenMarks 0.2.12
+
+By LanternSquid.
 
 OpenMarks is a local-first bookmark manager for Obsidian. Bookmarks are ordinary Markdown notes stored in the vault. The plugin has no account, telemetry, remote database, or separately installed runtime dependencies. The HTML parser is bundled.
 
@@ -14,7 +16,7 @@ The sample library is never added automatically. Choosing the empty library keep
 
 ## Install
 
-The easiest way to evaluate OpenMarks is to open `openmarks-demo-vault-0.2.11.zip` as a separate Obsidian vault. To install the plugin into another vault, use the macOS installer or copy `main.js`, `manifest.json`, and `styles.css` from `openmarks-0.2.11.zip` into `<vault>/.obsidian/plugins/openmarks/`.
+The easiest way to evaluate OpenMarks is to open `openmarks-demo-vault-0.2.12.zip` as a separate Obsidian vault. To install the plugin into another vault, use the macOS installer or copy `main.js`, `manifest.json`, and `styles.css` from `openmarks-0.2.12.zip` into `<vault>/.obsidian/plugins/openmarks/`.
 
 The installer and Community plugin package contain only `main.js`, `manifest.json`, and `styles.css`. Compressed sample data is bundled inside `main.js` and decoded only when you choose the sample library. It does not add sample notes at startup.
 

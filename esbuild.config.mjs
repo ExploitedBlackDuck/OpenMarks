@@ -6,7 +6,7 @@ const context = await esbuild.context({
   entryPoints: ['src/main.ts'], bundle: true, external: ['obsidian'],
   format: 'cjs', target: 'es2020', logLevel: 'info', sourcemap: production ? false : 'inline',
   treeShaking: true, outfile: 'main.js', minify: production,
-  banner: { js: "/* OpenMarks · local-first bookmarks for Obsidian */" },
+  banner: { js: "/* OpenMarks by LanternSquid · local-first bookmarks for Obsidian */" },
 });
 if (production) {
   await context.rebuild();

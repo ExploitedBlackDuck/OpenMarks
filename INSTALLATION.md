@@ -1,10 +1,12 @@
-# OpenMarks 0.2.11 installation
+# OpenMarks 0.2.12 installation
+
+By LanternSquid.
 
 Requires Obsidian 1.1.0 or newer.
 
 ## Try the isolated demo vault
 
-1. Unzip `openmarks-demo-vault-0.2.11.zip`.
+1. Unzip `openmarks-demo-vault-0.2.12.zip`.
 2. In Obsidian, choose **Open another vault** and then **Open folder as vault**.
 3. Select the `OpenMarks Demo Vault` folder.
 4. Trust and enable the included OpenMarks community plugin when Obsidian asks.
@@ -16,7 +18,7 @@ The demo vault contains 100 sample records across eight top-level collections. I
 
 ### macOS installer
 
-1. Unzip `openmarks-macos-installer-0.2.11.zip`.
+1. Unzip `openmarks-macos-installer-0.2.12.zip`.
 2. Run `install-openmarks.command` and select the target vault.
 3. In Obsidian, open **Settings → Community plugins** and enable OpenMarks.
 
@@ -24,7 +26,7 @@ The installer copies `main.js`, `manifest.json`, and `styles.css`. Compressed sa
 
 ### Manual install
 
-1. Unzip `openmarks-0.2.11.zip`.
+1. Unzip `openmarks-0.2.12.zip`.
 2. Copy the `openmarks` folder into `<vault>/.obsidian/plugins/`.
 3. Enable OpenMarks under **Settings → Community plugins**.
 
