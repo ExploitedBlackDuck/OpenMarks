@@ -1,0 +1,40 @@
+{
+  "result": [
+    [
+      "TypeScript and production bundle",
+      "PASS"
+    ],
+    [
+      "Suite on v22.20.0",
+      "PASS"
+    ],
+    [
+      "HTML DOM and manual favicon refresh",
+      "PASS"
+    ],
+    [
+      "Node 20 suite",
+      "PASS"
+    ],
+    [
+      "Node 24 suite",
+      "PASS"
+    ],
+    [
+      "Package, version and archive checks",
+      "PASS"
+    ],
+    [
+      "Install from macOS installer archive",
+      "PASS"
+    ],
+    [
+      "Compiled plugin lifecycle with disk-backed Obsidian API fixture",
+      "PASS"
+    ],
+    [
+      "Native Obsidian application",
+      "NOT TESTED"
+    ]
+  ]
+}

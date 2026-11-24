@@ -1,0 +1,9 @@
+{
+  "displayMode": "list",
+  "defaultCollection": "Unsorted",
+  "onboardingCompleted": true,
+  "automaticFavicons": false,
+  "faviconPrivacyChoice": true,
+  "faviconCacheIndex": {},
+  "faviconsDuringImport": true
+}
