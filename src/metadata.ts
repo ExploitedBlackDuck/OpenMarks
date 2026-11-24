@@ -13,14 +13,14 @@ async function waitForHost(rawUrl: string, signal?: AbortSignal): Promise<void> 
   const host = new URL(rawUrl).hostname.toLowerCase();
   const now = Date.now(); const slot = Math.max(now, hostRequestSlots.get(host) ?? now);
   hostRequestSlots.set(host, slot + HOST_REQUEST_INTERVAL_MS);
-  while (!signal?.aborted && Date.now() < slot) await new Promise((resolve) => setTimeout(resolve, Math.min(100, slot - Date.now())));
+  while (!signal?.aborted && Date.now() < slot) await new Promise((resolve) => window.setTimeout(resolve, Math.min(100, slot - Date.now())));
   if (signal?.aborted) throw new Error('Network request cancelled.');
 }
 
 function withTimeout<T>(request: Promise<T>, message: string, timeoutMs = TIMEOUT_MS): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
-    request.then((value) => { window.clearTimeout(timer); resolve(value); }, (error: unknown) => { window.clearTimeout(timer); reject(error); });
+    request.then((value) => { window.clearTimeout(timer); resolve(value); }, (error: unknown) => { window.clearTimeout(timer); reject(error instanceof Error ? error : new Error(String(error))); });
   });
 }
 

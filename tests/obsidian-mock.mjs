@@ -1,3 +1,4 @@
+export class TFolder { constructor(path, children = []) { this.path = path; this.children = children; } }
 export class TFile { constructor(path, content = '') { this.path = path; this.content = content; } }
 export class ItemView { constructor(leaf) { this.leaf = leaf; this.contentEl = {}; } }
 export class Modal { constructor(app) { this.app = app; } }

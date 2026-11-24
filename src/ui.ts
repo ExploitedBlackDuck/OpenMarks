@@ -2,13 +2,21 @@ import { ItemView, Menu, Modal, Notice, Setting, TFile, setIcon } from 'obsidian
 import type { App, WorkspaceLeaf } from 'obsidian';
 import { searchBookmarks } from './model.ts';
 import type { Bookmark, BookmarkDraft, SearchFilters } from './model.ts';
-import { BookmarkStore } from './storage.ts';
+import { BookmarkStore, filesInFolder } from './storage.ts';
 import { enrichDraft, fetchPageMetadata } from './metadata.ts';
 import { exportBookmarkHtml, exportCsv, exportJson, parseBookmarkHtml, parseBookmarkJson, parseCsvBookmarks, parseMarkdownBookmarks, parsePlainTextUrls, previewImport, saveExportToVault } from './import-export.ts';
 import { createOpenOnce, favoriteButtonAccessibility, faviconInitials, isCardEnter, navigationCurrentAttribute, visibleTags } from './ui-behavior.ts';
 
 export const DASHBOARD_VIEW = 'openmarks-dashboard';
 export const SIDEBAR_VIEW = 'openmarks-sidebar';
+
+function reportActionError(error: unknown): void {
+  new Notice(`OpenMarks could not finish the action: ${error instanceof Error ? error.message : String(error)}`);
+}
+
+function onAction(element: HTMLElement, event: string, action: () => Promise<void>): void {
+  element.addEventListener(event, () => { void action().catch(reportActionError); });
+}
 
 function recentBookmarksCutoff(days = 30): string { return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10); }
 
@@ -45,7 +53,7 @@ export class WelcomeModal extends Modal {
     const choose = (title: string, detail: string, action: () => Promise<void>) => {
       const card = choices.createEl('button', { cls: 'openmarks-welcome-choice' });
       card.createEl('strong', { text: title });
-      card.createEl('span', { text: detail });
+      card.createSpan({ text: detail });
       card.addEventListener('click', () => { card.disabled = true; void this.host.setAutomaticFavicons(automatic.checked).then(action).catch((error) => { card.disabled = false; new Notice(error instanceof Error ? error.message : 'OpenMarks could not complete this choice.'); }); });
     };
     choose('Start with an empty library', 'Create your own bookmark collection from scratch.', async () => { await this.host.completeOnboarding(); this.close(); });
@@ -87,7 +95,7 @@ export class FaviconConsentModal extends Modal {
 export class ExportCleanupModal extends Modal {
   constructor(app: App) { super(app); }
   onOpen(): void {
-    const exports = this.app.vault.getFiles().filter((file) => file.path.startsWith('_openmarks/exports/'));
+    const exports = [...filesInFolder(this.app, '_openmarks/exports')];
     this.titleEl.setText('Manage OpenMarks exports'); this.modalEl.addClass('openmarks-modal');
     if (!exports.length) {
       this.contentEl.createEl('p', { text: 'There are no OpenMarks exports in this vault.' });
@@ -177,13 +185,13 @@ export class DashboardView extends ItemView {
       if (path) this.expandedCollections.add(path);
     });
     const previousScroll = root.scrollTop;
-    const focused = root.contains(document.activeElement) ? document.activeElement?.closest<HTMLElement>('[data-focus-key]')?.dataset.focusKey : undefined;
+    const focused = root.contains(root.ownerDocument.activeElement) ? root.ownerDocument.activeElement?.closest<HTMLElement>('[data-focus-key]')?.dataset.focusKey : undefined;
     root.empty(); root.addClass('openmarks');
     const bar = root.createDiv({ cls: 'openmarks-topbar' });
     const heading = bar.createDiv({ cls: 'openmarks-heading' });
     const brand = heading.createDiv({ cls: 'openmarks-brand' }); setIcon(brand, 'bookmark'); brand.createEl('h2', { text: 'OpenMarks' });
-    heading.createEl('span', { cls: 'openmarks-count', text: `${this.host.store.all().length} saved` });
-    const faviconProgress = heading.createEl('span', { cls: 'openmarks-favicon-progress', text: this.host.faviconProgressText, attr: { 'aria-live': 'polite' } });
+    heading.createSpan({ cls: 'openmarks-count', text: `${this.host.store.all().length} saved` });
+    const faviconProgress = heading.createSpan({ cls: 'openmarks-favicon-progress', text: this.host.faviconProgressText, attr: { 'aria-live': 'polite' } });
     const actions = bar.createDiv({ cls: 'openmarks-actions' });
     const collapse = button(actions, this.sidebarCollapsed ? 'Show navigation' : 'Hide navigation', 'panel-left', () => {
       this.sidebarCollapsed = !this.sidebarCollapsed; void this.render();
@@ -194,11 +202,11 @@ export class DashboardView extends ItemView {
     const selectButton = actions.createEl('button', { cls: 'openmarks-select-button', text: this.selecting ? 'Done' : 'Select' });
     selectButton.addEventListener('click', () => { this.selecting = !this.selecting; this.selected.clear(); void this.render(); });
     if (this.selecting) {
-      actions.createEl('span', { cls: 'openmarks-count', text: `${this.selected.size} selected` });
+      actions.createSpan({ cls: 'openmarks-count', text: `${this.selected.size} selected` });
       const markRead = actions.createEl('button', { text: 'Mark read' });
-      markRead.addEventListener('click', async () => { for (const id of this.selected) await this.host.store.update(id, { status: 'read' }); this.selected.clear(); await this.host.refresh(); });
+      onAction(markRead, 'click', async () => { for (const id of this.selected) await this.host.store.update(id, { status: 'read' }); this.selected.clear(); await this.host.refresh(); });
       const archive = actions.createEl('button', { text: 'Archive' });
-      archive.addEventListener('click', async () => { for (const id of this.selected) await this.host.store.update(id, { status: 'archived' }); this.selected.clear(); await this.host.refresh(); });
+      onAction(archive, 'click', async () => { for (const id of this.selected) await this.host.store.update(id, { status: 'archived' }); this.selected.clear(); await this.host.refresh(); });
       const remove = actions.createEl('button', { cls: 'mod-warning', text: 'Delete' });
       remove.addEventListener('click', () => { if (this.selected.size) new ConfirmBulkDeleteModal(this.app, this.host, [...this.selected], () => this.selected.clear()).open(); });
     }
@@ -210,7 +218,7 @@ export class DashboardView extends ItemView {
       for (const issue of this.host.store.issues) {
         const row = issueList.createEl('li');
         row.createEl('code', { text: issue.path });
-        row.createEl('span', { text: ` ${issue.reason}` });
+        row.createSpan({ text: ` ${issue.reason}` });
         const open = row.createEl('button', { text: 'Open note', attr: { type: 'button' } });
         open.addEventListener('click', () => {
           const file = this.app.vault.getAbstractFileByPath(issue.path);
@@ -256,7 +264,7 @@ export class DashboardView extends ItemView {
       draw();
     };
     quickButtons.forEach((el, label) => el.addEventListener('click', () => activate(label, label === 'Favorites' ? { favorite: true } : label === 'Unread' ? { status: 'unread' } : label === 'Recently added' ? { sort: 'created', descending: true, createdAfter: recentBookmarksCutoff() } : { sort: 'created', descending: true })));
-    navigation.createEl('div', { cls: 'openmarks-nav-title', text: 'Library' });
+    navigation.createDiv({ cls: 'openmarks-nav-title', text: 'Library' });
     const allItems = this.host.store.all();
     const addNav = (label: string, icon: string, next: SearchFilters, count?: number): void => {
       const el = navigation.createEl('button', { cls: 'openmarks-nav-item', attr: { type: 'button', 'data-filter': label, 'aria-label': label, 'aria-current': navigationCurrentAttribute(label === filterName) } }); setIcon(el, icon); el.createSpan({ text: label });
@@ -265,12 +273,12 @@ export class DashboardView extends ItemView {
       el.addEventListener('click', () => activate(label, next));
     };
     addNav('All bookmarks', 'library', { sort: 'created', descending: true }, allItems.length);
-    navigation.createEl('div', { cls: 'openmarks-nav-title openmarks-nav-section', text: 'Smart collections' });
+    navigation.createDiv({ cls: 'openmarks-nav-title openmarks-nav-section', text: 'Smart collections' });
     addNav('Favorites', 'star', { favorite: true }, allItems.filter((item) => item.favorite).length);
     addNav('Unread', 'circle', { status: 'unread' }, allItems.filter((item) => item.status === 'unread').length);
     addNav('Recently added', 'clock-3', { sort: 'created', descending: true, createdAfter: recentBookmarksCutoff() }, allItems.filter((item) => item.created >= recentBookmarksCutoff()).length);
     addNav('Recently opened', 'history', { openedOnly: true, sort: 'opened', descending: true }, allItems.filter((item) => Boolean(item.last_opened)).length);
-    navigation.createEl('div', { cls: 'openmarks-nav-title openmarks-nav-section', text: 'Collections' });
+    navigation.createDiv({ cls: 'openmarks-nav-title openmarks-nav-section', text: 'Collections' });
     const tree = new Map<string, { path: string; children: Map<string, unknown> }>();
     for (const path of collectionPaths) {
       let cursor = tree; let cumulative = '';
@@ -301,7 +309,7 @@ export class DashboardView extends ItemView {
     };
     renderTree(navigation, tree);
     navigation.querySelectorAll('[data-filter]').forEach(el => el.classList.toggle('is-active', el.getAttribute('data-filter') === filterName));
-    if (!collectionPaths.length) navigation.createEl('div', { cls: 'openmarks-nav-empty', text: 'Your collections will appear here.' });
+    if (!collectionPaths.length) navigation.createDiv({ cls: 'openmarks-nav-empty', text: 'Your collections will appear here.' });
     const draw = (): void => {
       grid.empty(); const found = searchBookmarks(this.host.store.all(), active);
       if (this.host.automaticFavicons) this.host.enqueueFavicons(found, 20);
@@ -325,7 +333,8 @@ export class DashboardView extends ItemView {
     const card = parent.createDiv({ cls: `${cards ? 'openmarks-card' : 'openmarks-row'}${this.density === 'gallery' && !hasGalleryPreview ? ' openmarks-card-no-preview' : ''}` });
     card.dataset.bookmarkId = item.id;
     card.tabIndex = 0; card.setAttribute('role', 'article');
-    const openOnce = createOpenOnce(() => { void this.host.openBookmark(item); });
+    const ownerWindow = card.ownerDocument.defaultView ?? window;
+    const openOnce = createOpenOnce(() => { void this.host.openBookmark(item); }, ownerWindow.setTimeout.bind(ownerWindow));
     if (this.selecting) {
       const checkLabel = card.createEl('label', { cls: 'openmarks-selection' });
       const check = checkLabel.createEl('input', { attr: { type: 'checkbox', 'aria-label': `Select ${item.title}` } });
@@ -348,11 +357,11 @@ export class DashboardView extends ItemView {
     const main = card.createDiv({ cls: 'openmarks-card-main' });
     const titleLine = main.createDiv({ cls: 'openmarks-title-line' });
     titleLine.createEl('a', { cls: 'openmarks-title', text: item.title, attr: { href: item.url, title: item.title, 'aria-label': `Open ${item.title}` } }).addEventListener('click', openOnce);
-    titleLine.createEl('span', { cls: `openmarks-status openmarks-status-${item.status}`, text: item.status === 'unread' ? 'Unread' : item.status === 'archived' ? 'Archived' : '' });
-    const meta = main.createDiv({ cls: 'openmarks-meta' }); meta.createEl('span', { cls: 'openmarks-domain', text: item.domain });
+    titleLine.createSpan({ cls: `openmarks-status openmarks-status-${item.status}`, text: item.status === 'unread' ? 'Unread' : item.status === 'archived' ? 'Archived' : '' });
+    const meta = main.createDiv({ cls: 'openmarks-meta' }); meta.createSpan({ cls: 'openmarks-domain', text: item.domain });
     if (!this.filters.collection || this.filters.collection !== item.collection) {
       const collectionLabel = item.collection.split('/').filter(Boolean).at(-1) ?? item.collection;
-      meta.createEl('span', { cls: 'openmarks-collection', text: collectionLabel, attr: { title: item.collection } });
+      meta.createSpan({ cls: 'openmarks-collection', text: collectionLabel, attr: { title: item.collection } });
     }
     if (item.description) main.createDiv({ cls: 'openmarks-description', text: item.description });
     if (item.tags.length) {
@@ -363,7 +372,7 @@ export class DashboardView extends ItemView {
     }
     const tools = card.createDiv({ cls: 'openmarks-card-tools' });
     const favoriteA11y = favoriteButtonAccessibility(item.title, item.favorite);
-    const favorite = button(tools, favoriteA11y.label, 'star', () => { void this.host.store.update(item.id, { favorite: !item.favorite }).then(() => this.host.refresh()); });
+    const favorite = button(tools, favoriteA11y.label, 'star', () => { void this.host.store.update(item.id, { favorite: !item.favorite }).then(() => this.host.refresh()).catch(reportActionError); });
     favorite.setAttribute('aria-pressed', favoriteA11y.pressed);
     favorite.dataset.focusKey = `bookmark:${item.id}:favorite`;
     if (item.favorite) favorite.addClass('is-favorite');
@@ -381,10 +390,10 @@ export class DashboardView extends ItemView {
   private contextMenu(item: Bookmark, target: HTMLElement, event?: MouseEvent): void {
     const menu = new Menu();
     menu.addItem((entry) => { entry.setTitle('Open bookmark').setIcon('external-link').onClick(() => void this.host.openBookmark(item)); });
-    menu.addItem((entry) => { entry.setTitle('Copy URL').setIcon('copy').onClick(() => void navigator.clipboard.writeText(item.url).then(() => new Notice('URL copied.'))); });
+    menu.addItem((entry) => { entry.setTitle('Copy URL').setIcon('copy').onClick(() => void navigator.clipboard.writeText(item.url).then(() => new Notice('URL copied.')).catch(reportActionError)); });
     menu.addItem((entry) => { entry.setTitle('Edit bookmark').setIcon('pencil').onClick(() => new BookmarkModal(this.app, this.host, item).open()); });
     menu.addItem((entry) => { entry.setTitle('Move to collection…').setIcon('folder-input').onClick(() => new MoveBookmarkModal(this.app, this.host, item).open()); });
-    menu.addItem((entry) => { entry.setTitle(item.status === 'read' ? 'Mark unread' : 'Mark read').setIcon(item.status === 'read' ? 'circle' : 'check').onClick(() => void this.host.store.update(item.id, { status: item.status === 'read' ? 'unread' : 'read' }).then(() => this.host.refresh())); });
+    menu.addItem((entry) => { entry.setTitle(item.status === 'read' ? 'Mark unread' : 'Mark read').setIcon(item.status === 'read' ? 'circle' : 'check').onClick(() => void this.host.store.update(item.id, { status: item.status === 'read' ? 'unread' : 'read' }).then(() => this.host.refresh()).catch(reportActionError)); });
     menu.addItem((entry) => { entry.setTitle('Refresh favicon').setIcon('image').onClick(() => void this.host.refreshFavicon(item)); });
     menu.addItem((entry) => { entry.setTitle('Delete bookmark…').setIcon('trash').onClick(() => new ConfirmDeleteModal(this.app, this.host, item).open()); });
     if (event) menu.showAtMouseEvent(event); else menu.showAtPosition({ x: target.getBoundingClientRect().right, y: target.getBoundingClientRect().top });
@@ -414,8 +423,8 @@ export class SidebarView extends ItemView {
       if (!bookmarks.length) content.createDiv({ cls: 'openmarks-empty', text: 'No matches.' });
       bookmarks.forEach((item) => {
         const row = content.createEl('button', { cls: 'openmarks-sidebar-item', attr: { type: 'button', 'aria-label': `Open ${item.title}` } });
-        row.createEl('span', { text: item.favorite ? '★' : '•', cls: 'openmarks-sidebar-dot' });
-        row.createEl('span', { text: item.title, cls: 'openmarks-sidebar-title' });
+        row.createSpan({ text: item.favorite ? '★' : '•', cls: 'openmarks-sidebar-dot' });
+        row.createSpan({ text: item.title, cls: 'openmarks-sidebar-title' });
         row.addEventListener('click', () => void this.host.openBookmark(item));
       });
       if (matches.length > 50) content.createEl('p', { cls: 'openmarks-sidebar-limit', text: `Showing 50 of ${matches.length}. Refine your search to find other bookmarks.` });
@@ -430,7 +439,7 @@ export class SidebarView extends ItemView {
     navItem('Recently added', 'clock-3', { sort: 'created', descending: true, createdAfter: recentBookmarksCutoff() }, all.filter((b) => b.created >= recentBookmarksCutoff()).length);
     navItem('Recently opened', 'history', { openedOnly: true, sort: 'opened', descending: true }, all.filter((b) => Boolean(b.last_opened)).length);
     navItem('Unread', 'circle', { status: 'unread', sort: 'created', descending: true }, all.filter((b) => b.status === 'unread').length);
-    nav.createEl('div', { cls: 'openmarks-section-label', text: 'Collections' });
+    nav.createDiv({ cls: 'openmarks-section-label', text: 'Collections' });
     collections.forEach((collection) => navItem(collection.split('/').at(-1) || collection, 'folder', { collection, sort: 'created', descending: true }, all.filter((b) => b.collection === collection).length));
     search.value = this.searchQuery;
     search.addEventListener('input', () => { this.searchQuery = search.value; this.filter = { ...this.filter, query: this.searchQuery }; renderRows(); }); renderRows();
@@ -456,10 +465,10 @@ export class BookmarkModal extends Modal {
     const favoriteLabel = options.createEl('label'); const favorite = favoriteLabel.createEl('input', { attr: { type: 'checkbox' } }); favorite.checked = this.values.favorite ?? false; favoriteLabel.appendText(' Favorite'); favorite.addEventListener('change', () => { this.values.favorite = favorite.checked; });
     const status = options.createEl('select', { cls: 'dropdown' }); ['unread','read','archived'].forEach((v) => status.createEl('option', { value: v, text: v[0].toUpperCase() + v.slice(1) })); status.value = this.values.status ?? 'unread'; status.addEventListener('change', () => { this.values.status = status.value as Bookmark['status']; });
     const actions = contentEl.createDiv({ cls: 'openmarks-modal-actions' });
-    const metadata = actions.createEl('button', { text: 'Fetch page details' }); metadata.addEventListener('click', async () => {
+    const metadata = actions.createEl('button', { text: 'Fetch page details' }); onAction(metadata, 'click', async () => {
       this.readInputs(inputs); try { const found = await fetchPageMetadata(this.values.url); this.values.title ||= found.title; this.values.description ||= found.description; for (const [key, input] of inputs) if (key in found && !input.value) input.value = String(found[key as 'title' | 'description'] ?? ''); new Notice(found.title ? 'Page details loaded.' : 'Page details unavailable.'); } catch (error) { new Notice(error instanceof Error ? error.message : 'Could not fetch details.'); }
     });
-    const save = actions.createEl('button', { cls: 'mod-cta', text: this.item ? 'Save changes' : 'Save bookmark' }); save.addEventListener('click', async () => {
+    const save = actions.createEl('button', { cls: 'mod-cta', text: this.item ? 'Save changes' : 'Save bookmark' }); onAction(save, 'click', async () => {
       this.readInputs(inputs); try {
         const urlChanged = Boolean(this.item && this.values.url !== this.item.url);
         if (!this.item || urlChanged) {
@@ -496,7 +505,7 @@ export class BookmarkModal extends Modal {
 }
 
 function guardDelete(button: HTMLButtonElement, action: () => Promise<void>): void {
-  button.addEventListener('click', async () => {
+  onAction(button, 'click', async () => {
     if (button.disabled) return;
     button.disabled = true;
     try { await action(); }
@@ -520,7 +529,7 @@ class MoveBookmarkModal extends Modal {
     const input = this.contentEl.createEl('input', { attr: { type: 'text', list: listId, 'aria-label': 'Collection path', placeholder: 'Work/Research' } });
     input.value = this.item.collection;
     const save = this.contentEl.createEl('button', { cls: 'mod-cta', text: 'Move bookmark' });
-    save.addEventListener('click', async () => {
+    onAction(save, 'click', async () => {
       const collection = input.value.trim() || 'Unsorted';
       await this.host.store.update(this.item.id, { collection });
       await this.host.refresh(); this.close(); new Notice(`Moved to ${collection}.`);
@@ -554,7 +563,7 @@ export class ImportModal extends Modal {
     const input = this.contentEl.createEl('input', { attr: { type: 'file', multiple: 'true', accept: '.html,.htm,.csv,.json,.md,.txt,text/html,text/csv,application/json,text/markdown,text/plain' } });
     const preview = this.contentEl.createDiv({ cls: 'openmarks-import-preview' });
     const progress = this.contentEl.createDiv({ cls: 'openmarks-import-progress', attr: { 'aria-live': 'polite' } });
-    input.addEventListener('change', async () => {
+    onAction(input, 'change', async () => {
       const files = [...(input.files ?? [])]; if (!files.length) return;
       if (files.reduce((sum, file) => sum + file.size, 0) > 10_000_000) { preview.setText('Selected files exceed the 10 MB import limit.'); return; }
       this.loading = true;
@@ -569,10 +578,10 @@ export class ImportModal extends Modal {
         const result = previewImport(rows, this.host.store.all());
         progress.setText('');
         preview.empty(); preview.createEl('p', { text: `${result.rows.length} new · ${result.duplicates.length} duplicates · ${result.invalid.length} invalid` });
-        result.invalid.slice(0, 8).forEach((bad) => preview.createEl('div', { text: `Line ${bad.sourceLine}: ${bad.reason}`, cls: 'openmarks-import-error' }));
-        result.duplicates.slice(0, 8).forEach((dup) => preview.createEl('div', { text: `Duplicate: ${dup.url}`, cls: 'openmarks-import-duplicate' }));
+        result.invalid.slice(0, 8).forEach((bad) => preview.createDiv({ text: `Line ${bad.sourceLine}: ${bad.reason}`, cls: 'openmarks-import-error' }));
+        result.duplicates.slice(0, 8).forEach((dup) => preview.createDiv({ text: `Duplicate: ${dup.url}`, cls: 'openmarks-import-duplicate' }));
         const commit = preview.createEl('button', { cls: 'mod-cta', text: `Import ${result.rows.length} bookmarks` }); commit.disabled = !result.rows.length;
-        commit.addEventListener('click', async () => {
+        onAction(commit, 'click', async () => {
           if (this.processing || this.cancelRequested) return;
           this.processing = true; input.disabled = true; commit.disabled = true;
           const cancel = preview.createEl('button', { text: 'Cancel import' }); cancel.addEventListener('click', () => { this.cancelRequested = true; cancel.disabled = true; progress.setText('Cancelling after the current bookmark…'); });

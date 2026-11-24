@@ -48,7 +48,7 @@ export function normalizeFaviconCacheIndex(value: unknown): FaviconCacheIndex {
     try { parsed = new URL(origin); } catch { continue; }
     if (!['http:', 'https:'].includes(parsed.protocol) || parsed.origin !== origin) continue;
     const record = raw as Partial<FaviconCacheRecord>;
-    const text = (field: keyof FaviconCacheRecord): string => typeof record[field] === 'string' ? record[field] as string : '';
+    const text = (field: keyof FaviconCacheRecord): string => typeof record[field] === 'string' ? record[field] : '';
     result[origin] = {
       origin, source: text('source'), iconPath: localIconPath(text('iconPath')), lastSuccessAt: text('lastSuccessAt'),
       lastAttemptAt: text('lastAttemptAt'), etag: text('etag'), lastModified: text('lastModified'),
@@ -65,7 +65,7 @@ export async function persistCacheState(save: () => Promise<void>, onError: (err
 
 export class CoalescedAsyncWriter {
   private dirty = false;
-  private timer: ReturnType<typeof setTimeout> | null = null;
+  private timer: ReturnType<typeof window.setTimeout> | null = null;
   private inFlight: Promise<boolean> | null = null;
   private failures = 0;
   private stopped = false;
@@ -86,7 +86,7 @@ export class CoalescedAsyncWriter {
   }
 
   async flush(): Promise<void> {
-    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    if (this.timer) { window.clearTimeout(this.timer); this.timer = null; }
     if (this.inFlight) {
       const saved = await this.inFlight;
       if (saved && this.dirty) await this.flush();
@@ -113,13 +113,13 @@ export class CoalescedAsyncWriter {
 
   async stopAndFlush(): Promise<void> {
     this.stopped = true;
-    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+    if (this.timer) { window.clearTimeout(this.timer); this.timer = null; }
     await this.flush();
   }
 
   private schedule(delayMs = this.delayMs): void {
     if (this.stopped || this.timer || this.inFlight || !this.dirty) return;
-    this.timer = setTimeout(() => { this.timer = null; void this.flush(); }, delayMs);
+    this.timer = window.setTimeout(() => { this.timer = null; void this.flush(); }, delayMs);
   }
 }
 
@@ -168,7 +168,7 @@ export function migrateLegacyFaviconIndex(index: FaviconCacheIndex, bookmarks: r
     const legacy = legacyFaviconRecord(item);
     if (!legacy) continue;
     next[legacy.origin] = mergeFaviconCacheRecords(next[legacy.origin], legacy);
-    if (Boolean(item.favicon_source || item.favicon_checked_at || item.favicon_retry_at || item.favicon_etag || item.favicon_last_modified || item.favicon_failed_attempts)) pathsToClean.push(item.path);
+    if (item.favicon_source || item.favicon_checked_at || item.favicon_retry_at || item.favicon_etag || item.favicon_last_modified || item.favicon_failed_attempts) pathsToClean.push(item.path);
   }
   return { index: next, pathsToClean: [...new Set(pathsToClean)] };
 }

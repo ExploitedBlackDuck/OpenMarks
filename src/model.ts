@@ -66,7 +66,7 @@ export function stableId(url: string): string {
 }
 
 export function newBookmarkId(): string {
-  const cryptoApi = globalThis.crypto;
+  const cryptoApi = typeof crypto === 'undefined' ? undefined : crypto;
   if (cryptoApi?.randomUUID) return cryptoApi.randomUUID();
   if (cryptoApi?.getRandomValues) {
     const bytes = cryptoApi.getRandomValues(new Uint8Array(16));
@@ -86,7 +86,7 @@ export function safeFilename(title: string, id: string): string {
 }
 
 export function localIconPath(value: unknown): string {
-  if (typeof value !== 'string' || /[:\\?#%\x00-\x1f]/.test(value) || !/\.(?:png|ico|jpe?g|gif|webp)$/i.test(value)) return '';
+  if (typeof value !== 'string' || /[:\\?#%]/.test(value) || Array.from(value).some(char => char.charCodeAt(0) < 32) || !/\.(?:png|ico|jpe?g|gif|webp)$/i.test(value)) return '';
   return value.split('/').every(part => part && part !== '.' && part !== '..') ? value : '';
 }
 

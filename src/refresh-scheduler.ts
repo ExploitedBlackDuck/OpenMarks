@@ -1,6 +1,6 @@
 export class RefreshScheduler {
-  private debounceTimer: ReturnType<typeof setTimeout> | undefined;
-  private maxTimer: ReturnType<typeof setTimeout> | undefined;
+  private debounceTimer: ReturnType<typeof window.setTimeout> | undefined;
+  private maxTimer: ReturnType<typeof window.setTimeout> | undefined;
   private waiters: Array<() => void> = [];
   private running = false;
 
@@ -13,15 +13,15 @@ export class RefreshScheduler {
 
   schedule(): Promise<void> {
     const completion = new Promise<void>((resolve) => this.waiters.push(resolve));
-    if (this.debounceTimer) clearTimeout(this.debounceTimer);
-    this.debounceTimer = setTimeout((): void => { this.flush(); }, this.debounceMs);
-    if (!this.maxTimer) this.maxTimer = setTimeout((): void => { this.flush(); }, this.maxWaitMs);
+    if (this.debounceTimer) window.clearTimeout(this.debounceTimer);
+    this.debounceTimer = window.setTimeout((): void => { this.flush(); }, this.debounceMs);
+    if (!this.maxTimer) this.maxTimer = window.setTimeout((): void => { this.flush(); }, this.maxWaitMs);
     return completion;
   }
 
   flush(): void {
-    if (this.debounceTimer) clearTimeout(this.debounceTimer);
-    if (this.maxTimer) clearTimeout(this.maxTimer);
+    if (this.debounceTimer) window.clearTimeout(this.debounceTimer);
+    if (this.maxTimer) window.clearTimeout(this.maxTimer);
     this.debounceTimer = undefined;
     this.maxTimer = undefined;
     if (!this.waiters.length || this.running) return;
@@ -35,8 +35,8 @@ export class RefreshScheduler {
   }
 
   cancel(): void {
-    if (this.debounceTimer) clearTimeout(this.debounceTimer);
-    if (this.maxTimer) clearTimeout(this.maxTimer);
+    if (this.debounceTimer) window.clearTimeout(this.debounceTimer);
+    if (this.maxTimer) window.clearTimeout(this.maxTimer);
     this.debounceTimer = undefined;
     this.maxTimer = undefined;
     this.waiters.splice(0).forEach((resolve) => resolve());

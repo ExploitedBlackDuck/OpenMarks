@@ -2,6 +2,7 @@
    Runtime imports remain external and are supplied by Obsidian. */
 declare module 'obsidian' {
   export class TAbstractFile { path: string; }
+  export class TFolder extends TAbstractFile { children: TAbstractFile[]; }
   export class TFile extends TAbstractFile { }
   export interface FrontMatterCache { [key: string]: any; }
   export interface Vault {

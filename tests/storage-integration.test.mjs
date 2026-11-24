@@ -1,15 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BookmarkStore } from '../.test-build/storage.mjs';
-import { TFile } from './obsidian-mock.mjs';
+import { TFile, TFolder } from './obsidian-mock.mjs';
 
 function fakeApp() {
   const files = new Map(); const trash = new Set(); const folders = new Set();
   let beforeProcessFrontMatter = null;
   let readFailures = 0;
   const vault = {
-    getMarkdownFiles: () => [...files.values()],
-    getAbstractFileByPath: (path) => files.get(path) ?? (folders.has(path) ? { path } : null),
+    getAbstractFileByPath: (path) => files.get(path) ?? (folders.has(path) || path === '_openmarks/bookmarks' ? new TFolder(path, [...files.values()].filter(file => file.path.startsWith(path + '/'))) : null),
     cachedRead: async (file) => { if (readFailures > 0) { readFailures--; throw new Error('simulated read-back failure'); } return file.content; },
     create: async (path, content) => { if (files.has(path)) throw new Error('File already exists.'); const file = new TFile(path, content); files.set(path, file); return file; },
     createFolder: async (path) => { folders.add(path); },
@@ -315,4 +314,17 @@ test('cleared optional properties load and a remote icon is never written on cre
   assert.equal(store.issues.length,0);
   assert.deepEqual(store.get(mark.id).tags,[]);
   assert.equal(store.get(mark.id).status,'unread');
+});
+
+test('folder discovery visits nested bookmark folders and leaves sibling folders alone', async () => {
+  const { filesInFolder } = await import('../.test-build/storage.mjs');
+  const root = '_openmarks/bookmarks';
+  const direct = new TFile(root + '/One.md');
+  const nested = new TFile(root + '/Reading/Two.md');
+  const folder = new TFolder(root, [direct, new TFolder(root + '/Reading', [nested])]);
+  const requested = [];
+  const app = { vault: { getAbstractFileByPath(path) { requested.push(path); return path === root ? folder : null; } } };
+  assert.deepEqual([...filesInFolder(app, root)], [direct, nested]);
+  assert.deepEqual([...filesInFolder(app, '_openmarks/exports')], []);
+  assert.deepEqual(requested, [root, '_openmarks/exports']);
 });

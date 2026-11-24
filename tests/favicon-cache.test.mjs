@@ -1,3 +1,4 @@
+globalThis.window ??= globalThis;
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CoalescedAsyncWriter, DeferredFaviconSet, emptyFaviconRecord, faviconOriginChanged, migrateLegacyFaviconIndex, normalizeFaviconCacheIndex, persistCacheState, persistBeforeLegacyCleanup, isManagedFaviconPath } from '../.test-build/favicon-cache.mjs';

@@ -1,6 +1,18 @@
-import { App, TFile, normalizePath, parseYaml, stringifyYaml } from 'obsidian';
+import { App, TFolder, TFile, normalizePath, parseYaml, stringifyYaml } from 'obsidian';
 import { BOOKMARK_ROOT, DEFAULT_COLLECTION, makeBookmark, normalizeUrl, safeFilename, stableId } from './model.ts';
 import type { Bookmark, BookmarkDraft } from './model.ts';
+
+export function* filesInFolder(app: App, path: string): Generator<TFile> {
+  const folder = app.vault.getAbstractFileByPath(path);
+  if (!(folder instanceof TFolder)) return;
+  const pending = [folder];
+  while (pending.length) {
+    for (const child of pending.pop()!.children) {
+      if (child instanceof TFolder) pending.push(child);
+      else if (child instanceof TFile) yield child;
+    }
+  }
+}
 
 const FIELDS = ['type', 'id', 'title', 'url', 'domain', 'description', 'collection', 'tags', 'favorite', 'status', 'created', 'last_opened', 'favicon', 'favicon_source', 'favicon_checked_at', 'favicon_retry_at', 'favicon_etag', 'favicon_last_modified', 'favicon_failed_attempts', 'preview_image', 'preview_source'] as const;
 type MetadataField = typeof FIELDS[number];
@@ -149,7 +161,7 @@ export class BookmarkStore {
   async load(): Promise<void> {
     await this.serial(async () => {
       this.records.clear(); this.byUrl.clear(); this.byPath.clear(); this.issuesByPath.clear();
-      for (const file of this.app.vault.getMarkdownFiles()) {
+      for (const file of filesInFolder(this.app, BOOKMARK_ROOT)) {
         if (!isBookmarkPath(file.path)) continue;
         await this.loadFile(file);
       }

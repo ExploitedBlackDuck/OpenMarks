@@ -4,7 +4,7 @@ import { mkdir } from 'node:fs/promises';
 import { performance } from 'node:perf_hooks';
 import { searchBookmarks } from '../src/model.ts';
 import { previewImport } from '../src/import-export.ts';
-import { TFile } from '../tests/obsidian-mock.mjs';
+import { TFile, TFolder } from '../tests/obsidian-mock.mjs';
 
 await mkdir('.test-build', { recursive: true });
 await esbuild.build({
@@ -18,8 +18,7 @@ const { BookmarkStore } = await import('../.test-build/storage.mjs');
 function benchmarkApp() {
   const files = new Map(); const folders = new Set();
   const vault = {
-    getMarkdownFiles: () => [...files.values()],
-    getAbstractFileByPath: (path) => files.get(path) ?? (folders.has(path) ? { path } : null),
+    getAbstractFileByPath: (path) => files.get(path) ?? (folders.has(path) || path === '_openmarks/bookmarks' ? new TFolder(path, [...files.values()].filter(file => file.path.startsWith(path + '/'))) : null),
     cachedRead: async (file) => file.content,
     create: async (path, content) => {
       if (files.has(path)) throw new Error('File already exists.');

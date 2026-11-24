@@ -37,10 +37,10 @@ export default class OpenMarksPlugin extends Plugin implements OpenMarksHost {
   private deferredFavicons = new DeferredFaviconSet();
   private importInProgress = false;
   private importRefreshPending = false;
-  private faviconRetryTimers = new Set<ReturnType<typeof setTimeout>>();
+  private faviconRetryTimers = new Set<ReturnType<typeof window.setTimeout>>();
   private refreshScheduler!: RefreshScheduler;
   get isImporting(): boolean { return this.importInProgress; }
-  onunload(): void { this.faviconQueue?.cancel(); this.originFaviconRequests.clear(); this.refreshScheduler?.cancel(); for (const timer of this.faviconRetryTimers) clearTimeout(timer); this.faviconRetryTimers.clear(); void this.faviconCacheWriter?.stopAndFlush(); }
+  onunload(): void { this.faviconQueue?.cancel(); this.originFaviconRequests.clear(); this.refreshScheduler?.cancel(); for (const timer of this.faviconRetryTimers) window.clearTimeout(timer); this.faviconRetryTimers.clear(); void this.faviconCacheWriter?.stopAndFlush(); }
   async onload(): Promise<void> {
     const saved = await this.loadData() as { displayMode?: string; defaultCollection?: string; onboardingCompleted?: boolean; automaticFavicons?: boolean; faviconPrivacyChoice?: boolean; faviconsDuringImport?: boolean; faviconRefreshDays?: number; faviconCacheIndex?: unknown } | null;
     if (saved?.displayMode && ['compact', 'comfortable', 'gallery', 'list'].includes(saved.displayMode)) this.displayMode = saved.displayMode as typeof this.displayMode;
@@ -74,7 +74,7 @@ export default class OpenMarksPlugin extends Plugin implements OpenMarksHost {
     this.addRibbonIcon('bookmark', 'Open OpenMarks', () => void this.openDashboard());
     this.app.workspace.onLayoutReady(() => {
       this.watchVaultChanges();
-      return this.store.load().then(async () => {
+      this.initialization = this.store.load().then(async () => {
         await this.migrateFaviconCacheIndex();
         await this.restoreCachedFaviconReferences();
         await this.refresh();
@@ -86,15 +86,17 @@ export default class OpenMarksPlugin extends Plugin implements OpenMarksHost {
         }
         if (!this.faviconPrivacyChoice && this.store.all().length > 0) new FaviconConsentModal(this.app, this).open();
         this.enqueueMissingFavicons(0);
-      });
+      }).catch((error: unknown) => { new Notice(`OpenMarks could not load the library: ${String(error)}`); });
     });
   }
+
+  initialization: Promise<void> = Promise.resolve();
 
   private watchVaultChanges(): void {
     this.registerEvent(this.app.vault.on('create', (file) => {
       if (this.migratingFaviconMetadata) return;
       const deferIcon = this.importInProgress;
-      if (file instanceof TFile && file.path.startsWith('_openmarks/bookmarks/')) void this.store.refreshFromFile(file).then((item) => { if (item && !deferIcon) this.enqueueFavicons([item], 5); return this.refresh(); });
+      if (file instanceof TFile && file.path.startsWith('_openmarks/bookmarks/')) void this.store.refreshFromFile(file).then((item) => { if (item && !deferIcon) this.enqueueFavicons([item], 5); return this.refresh(); }).catch(reportVaultError);
     }));
     this.registerEvent(this.app.vault.on('modify', (file) => {
       if (this.migratingFaviconMetadata) return;
@@ -106,14 +108,14 @@ export default class OpenMarksPlugin extends Plugin implements OpenMarksHost {
           if (previous && this.onlyFaviconChanged(previous, item)) { this.updateFaviconUi(item); return; }
           if (!previous || item.url !== previous.url || !item.favicon) this.enqueueFavicons([item], 5);
           return this.refresh();
-        });
+        }).catch(reportVaultError);
       }
     }));
     this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
-      if (file instanceof TFile && (oldPath.startsWith('_openmarks/bookmarks/') || file.path.startsWith('_openmarks/bookmarks/'))) void this.store.handleRename(file, oldPath).then((item) => { if (item && !item.favicon) this.enqueueFavicons([item], 5); return this.refresh(); });
+      if (file instanceof TFile && (oldPath.startsWith('_openmarks/bookmarks/') || file.path.startsWith('_openmarks/bookmarks/'))) void this.store.handleRename(file, oldPath).then((item) => { if (item && !item.favicon) this.enqueueFavicons([item], 5); return this.refresh(); }).catch(reportVaultError);
     }));
     this.registerEvent(this.app.vault.on('delete', (file) => {
-      if (file.path.startsWith('_openmarks/bookmarks/')) void this.store.handleDelete(file.path).then(() => this.refresh());
+      if (file.path.startsWith('_openmarks/bookmarks/')) void this.store.handleDelete(file.path).then(() => this.refresh()).catch(reportVaultError);
     }));
   }
 
@@ -296,7 +298,7 @@ export default class OpenMarksPlugin extends Plugin implements OpenMarksHost {
     const item = this.store.get(id); if (!item) return;
     const retryAt = this.faviconRecord(item).retryAt; if (!retryAt) return;
     const remaining = Date.parse(retryAt) - Date.now();
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       this.faviconRetryTimers.delete(timer);
       const latest = this.store.get(id);
       if (!latest || !this.automaticFavicons) return;
@@ -491,4 +493,8 @@ export default class OpenMarksPlugin extends Plugin implements OpenMarksHost {
       else { new Notice('Clipboard did not contain a valid HTTP or HTTPS URL.'); new BookmarkModal(this.app, this).open(); }
     }
   }
+}
+
+function reportVaultError(error: unknown): void {
+  new Notice(`OpenMarks could not update its library after a file change: ${String(error)}`);
 }

@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 
 import * as mock from '../tests/obsidian-mock.mjs';
 
+globalThis.window ??= globalThis;
 const root = process.cwd();
 const stage = fs.mkdtempSync(join(tmpdir(), 'openmarks-validation-'));
 const project = join(stage, 'source');
@@ -26,12 +27,15 @@ try {
   await check('TypeScript and production bundle', () => run('npm',['run','build']));
   await check('Suite on '+process.version, () => run('npm',['test']));
   await check('HTML DOM and manual favicon refresh', () => run(process.execPath,['scripts/test-review-dom.mjs']));
+  const referenceBundle = fs.readFileSync(join(project,'main.js'));
   for (const major of [20,22,24]) {
     if (Number(process.versions.node.split('.')[0]) === major) continue;
     const binary = process.env['NODE'+major];
     if (!binary) { result.push(['Node '+major+' suite','NOT TESTED']); continue; }
     await check('Node '+major+' suite', () => {
       assert.equal(Number(execFileSync(binary,['-p','process.versions.node.split(".")[0]'],{encoding:'utf8'})),major);
+      run(binary,['esbuild.config.mjs','production']);
+      assert.deepEqual(fs.readFileSync(join(project,'main.js')), referenceBundle, 'Production bundle differs across Node versions');
       run(binary,['--test',...fs.readdirSync(join(project,'tests')).filter(n=>n.endsWith('.test.mjs')).map(n=>'tests/'+n)]);
     });
   }
@@ -61,12 +65,15 @@ try {
     Function('module','exports','require',fs.readFileSync(join(dir,'main.js'),'utf8'))(bundle,bundle.exports,name=>{
       assert.equal(name,'obsidian'); return sdk;
     });
-    const notes='_openmarks/bookmarks';
     const file=p=>new mock.TFile(p);
     const read=f=>fs.readFileSync(join(vault,f.path),'utf8');
     const put=(f,body)=>fs.writeFileSync(join(vault,f.path),body);
-    const api={on(){},getAbstractFileByPath:p=>fs.existsSync(join(vault,p))?file(p):null,
-      getMarkdownFiles:()=>fs.existsSync(join(vault,notes))?fs.readdirSync(join(vault,notes)).map(n=>file(notes+'/'+n)):[],
+    function entry(p) {
+      if (!fs.existsSync(join(vault,p))) return null;
+      return fs.statSync(join(vault,p)).isDirectory()
+        ? new mock.TFolder(p,fs.readdirSync(join(vault,p)).map(n=>entry(p+'/'+n))) : file(p);
+    }
+    const api={on(){},getAbstractFileByPath:entry,
       cachedRead:read,createFolder:p=>fs.mkdirSync(join(vault,p)),create(p,body){fs.writeFileSync(join(vault,p),body,{flag:'wx'});return file(p);},
       process(f,fn){const body=fn(read(f));put(f,body);return body;}};
     const app={vault:api,workspace:{onLayoutReady(fn){ready=fn;},getLeavesOfType:()=>[]},
@@ -74,7 +81,7 @@ try {
         const [header,body]=read(f).slice(4).split('\n---\n');const props=JSON.parse(header);
         fn(props);put(f,'---\n'+JSON.stringify(props)+'\n---\n'+body);
       }}};
-    async function start(){const plugin=new bundle.exports.default();plugin.app=app;await plugin.onload();await ready();return plugin;}
+    async function start(){const plugin=new bundle.exports.default();plugin.app=app;await plugin.onload();ready();await plugin.initialization;return plugin;}
     let plugin=await start();
     assert.equal(plugin.faviconRefreshDays,30);assert.equal(modals.length,1);
     const mark=await plugin.store.create({url:'https://example.org',title:'First'});
@@ -90,5 +97,5 @@ try {
 } catch (err) { console.error(err.message); failed=true; }
 result.push(['Native Obsidian application','NOT TESTED']);
 console.table(result);
-fs.writeFileSync(resolve(root,'RELEASE-VALIDATION.json'),JSON.stringify({stage,result},null,2)+'\n');
+fs.writeFileSync(resolve(root,'RELEASE-VALIDATION.json'),JSON.stringify({result},null,2)+'\n');
 process.exitCode=failed?1:result.some(row=>row[1]==='NOT TESTED')?2:0;

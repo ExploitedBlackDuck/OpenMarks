@@ -1,4 +1,4 @@
-# OpenMarks 0.2.12
+# OpenMarks 0.2.13
 
 By LanternSquid.
 
@@ -16,7 +16,7 @@ The sample library is never added automatically. Choosing the empty library keep
 
 ## Install
 
-The easiest way to evaluate OpenMarks is to open `openmarks-demo-vault-0.2.12.zip` as a separate Obsidian vault. To install the plugin into another vault, use the macOS installer or copy `main.js`, `manifest.json`, and `styles.css` from `openmarks-0.2.12.zip` into `<vault>/.obsidian/plugins/openmarks/`.
+The easiest way to evaluate OpenMarks is to open `openmarks-demo-vault-0.2.13.zip` as a separate Obsidian vault. To install the plugin into another vault, use the macOS installer or copy `main.js`, `manifest.json`, and `styles.css` from `openmarks-0.2.13.zip` into `<vault>/.obsidian/plugins/openmarks/`.
 
 The installer and Community plugin package contain only `main.js`, `manifest.json`, and `styles.css`. Compressed sample data is bundled inside `main.js` and decoded only when you choose the sample library. It does not add sample notes at startup.
 
@@ -56,3 +56,7 @@ npm run package
 `npm run package` builds the plugin and assembles the four release ZIPs in `release/`, with integrity and required-file checks.
 
 OpenMarks accepts PNG, JPEG, GIF, ICO and WebP favicon downloads. SVG-only sites use initials. Existing SVG cache files remain eligible for manual cache cleanup.
+
+OpenMarks lists files within its bookmark and export folders. The Save URL from clipboard command reads the clipboard. The Copy URL action writes the selected bookmark address. Both require a user action.
+
+Build from a clean checkout with `npm ci` and `npm run build`. To update the sample library, run `npm run generate:samples` after editing the demo notes and commit the generated module. Normal builds verify the stored payload.

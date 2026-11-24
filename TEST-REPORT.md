@@ -1,3 +1,20 @@
+# OpenMarks 0.2.13 verification
+
+By LanternSquid.
+
+| Check | Result |
+| --- | --- |
+| Automated suite | All 85 tests passed on each of Node 20, 22 and 24. |
+| TypeScript and production bundle | Passed. The three tested Node versions produced identical bundle bytes on this Mac. |
+| Sample library | All 100 records matched the committed compressed module. |
+| Disk-backed lifecycle and installer | Clean installation, creation, update, stale-write rejection, restart and deletion passed in the compiled plugin fixture. |
+| macOS desktop | Obsidian 1.15.1 reloaded the disposable first-run-samples vault with 100 saved bookmarks. Global Settings search returned the OpenMarks favicon preference. |
+| Release archives | The runtime, source, demo and macOS installer passed ZIP and version checks. |
+| Pending external verification | Community scanner results and independent cross-platform builds. |
+| Outside this test pass | Native mobile, detached-window interaction and older Obsidian versions. |
+
+The automated validator reports native application testing separately from the desktop checks recorded above.
+
 # OpenMarks 0.2.12 verification
 
 By LanternSquid.

@@ -25,7 +25,7 @@ export async function waitForDomainSlot(url: string, nextAllowed: Map<string, nu
   const slot = Math.max(now, nextAllowed.get(host) ?? now);
   nextAllowed.set(host, slot + intervalMs);
   while (!signal.aborted && Date.now() < slot) {
-    await new Promise((resolve) => setTimeout(resolve, Math.min(100, slot - Date.now())));
+    await new Promise((resolve) => window.setTimeout(resolve, Math.min(100, slot - Date.now())));
   }
   return !signal.aborted;
 }

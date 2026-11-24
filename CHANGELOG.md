@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.13
+
+- Verify the bundled sample library during builds and reuse its committed bytes.
+- Limit file discovery to OpenMarks folders. Surface asynchronous action errors.
+- Use window timers and preserve focus in detached windows. Make settings searchable on compatible Obsidian versions and retain the older settings layout.
+
 ## 0.2.12
 
 - Credit LanternSquid as the author of OpenMarks in the plugin, documentation, license, and release packages.

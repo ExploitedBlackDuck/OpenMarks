@@ -1,3 +1,4 @@
+globalThis.window ??= globalThis;
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FaviconQueue } from '../.test-build/favicon-queue.mjs';

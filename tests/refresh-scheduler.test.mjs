@@ -1,3 +1,4 @@
+globalThis.window ??= globalThis;
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RefreshScheduler } from '../.test-build/refresh-scheduler.mjs';

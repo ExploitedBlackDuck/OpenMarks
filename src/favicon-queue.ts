@@ -92,7 +92,7 @@ export class FaviconQueue<T> {
     try { host = new URL(rawUrl).hostname.toLowerCase(); } catch { return false; }
     const now = Date.now(); const slot = Math.max(now, this.domainSlots.get(host) ?? now);
     this.domainSlots.set(host, slot + this.domainIntervalMs);
-    while (!this.controller.signal.aborted && Date.now() < slot) await new Promise((resolve) => setTimeout(resolve, Math.min(100, slot - Date.now())));
+    while (!this.controller.signal.aborted && Date.now() < slot) await new Promise((resolve) => window.setTimeout(resolve, Math.min(100, slot - Date.now())));
     return !this.controller.signal.aborted;
   }
 
